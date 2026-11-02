@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "repository": "appolon1908/InsightFace",
+  "upstream_repository": "opencv/opencv_zoo",
+  "upstream_commit": "48b10fa505aeb51fbd127fc60a5c660040e823b7",
+  "models": [
+    {
+      "name": "yunet",
+      "path": "models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+      "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
+      "size": 232589,
+      "filename": "face_detection_yunet_2023mar.onnx",
+      "pointer_blob": "2d8804a5986e229f1fde3a1994feacc66c91b58b"
+    },
+    {
+      "name": "sface",
+      "path": "models/face_recognition_sface/face_recognition_sface_2021dec.onnx",
+      "sha256": "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79",
+      "size": 38696353,
+      "filename": "face_recognition_sface_2021dec.onnx",
+      "pointer_blob": "5817e559d509b2c1d5069f3c49a388bc45d4395f"
+    }
+  ],
+  "commercial_deployment_approved": false,
+  "real_inference_certified": false,
+  "hardware_certified": false,
+  "frozen_files": {
+    "Dockerfile": "80048e618f4002e607319d3500f34b3dcd7f71a5aa1e69a1f619bded9ef3a2df",
+    "NOTICE.md": "cc95bd288d33e0f8b5378ac2ba9ee9d899efc53a4e94ec200c88e2f04a635fb9",
+    "requirements.txt": "ea5b613139b47a5457c53dc8c785fc964c67f2fe88a7d9101b1ef288bbc73a5e",
+    "app/main.py": "cad5a052a0004756dcc14c9c5d31bc615af20965ce09eac8bb64f867bd129a75",
+    "licenses/models/yunet-LICENSE.txt": "2ad92c7a6eb7aebede4e19f5ec4930c8bd9d614dbb8e75be1f740edae346734c",
+    "licenses/models/sface-LICENSE.txt": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  }
+}

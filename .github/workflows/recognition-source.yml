@@ -1,0 +1,83 @@
+name: Recognition owned source and model provenance
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Model-independent source tests and verified artifact build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      ALLOW_PRODUCTION_EFFECTS: '0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Require trusted model and provenance boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$BASE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          if git cat-file -e "$BASE_SHA:governance/model-source-boundary.json" 2>/dev/null; then
+            git diff --exit-code "$BASE_SHA" -- .github scripts/check_model_boundary.py governance/model-source-boundary.json Dockerfile NOTICE.md licenses/models requirements.txt app/main.py
+            git show "$BASE_SHA:scripts/check_model_boundary.py" > "$RUNNER_TEMP/check-model-boundary.py"
+          else
+            test "$BASE_SHA" = 10ec988f3cdd5036613d4a8adaae5aa35199e3d3
+            cp scripts/check_model_boundary.py "$RUNNER_TEMP/check-model-boundary.py"
+          fi
+          python "$RUNNER_TEMP/check-model-boundary.py"
+      - name: Install pinned source and isolated test dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt pytest==8.4.2 httpx==0.28.1
+      - name: Compile all tracked Python
+        run: git ls-files -z '*.py' | xargs -0 -r python -m py_compile
+      - name: Exercise actual API and numeric behavior with synthetic constructors only
+        run: python -m pytest -q
+      - name: Build actual pinned model artifacts with checksums, without running inference
+        run: docker build --tag recognition-source-ci .
+  secrets:
+    name: Full-history and source secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Scan complete effective tree and tracked history
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/gitleaks.tar.gz"
+          curl --fail --silent --show-error --location https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz --output "$archive"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $archive" | sha256sum --check -
+          tar -xzf "$archive" -C "$RUNNER_TEMP" gitleaks
+          for scope in git dir; do
+            if ! "$RUNNER_TEMP/gitleaks" "$scope" --no-banner --redact=100 --exit-code 1 --report-format json --report-path "$RUNNER_TEMP/gitleaks-redacted.json" .; then
+              python - <<'PYTHON'
+          import json,os
+          from pathlib import Path
+          for finding in json.loads((Path(os.environ['RUNNER_TEMP'])/'gitleaks-redacted.json').read_text()):
+              print(json.dumps({key:finding.get(key) for key in ('RuleID','File','StartLine','Commit','Fingerprint')}))
+          PYTHON
+              exit 1
+            fi
+          done
+  recognition-source-validation:
+    name: recognition-source-validation
+    needs: [test, secrets]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require real source tests, immutable model proof/build and secret scans
+        env:
+          TEST_RESULT: ${{ needs.test.result }}
+          SECRET_RESULT: ${{ needs.secrets.result }}
+        run: |
+          test "$TEST_RESULT" = success
+          test "$SECRET_RESULT" = success
